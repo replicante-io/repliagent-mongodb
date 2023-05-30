@@ -1,0 +1,39 @@
+[package]
+name = "repliagent-mongodb"
+version = "0.1.0"
+description = "Replicante Agent for MongoDB"
+
+edition = "2021"
+rust-version = "1.66"
+
+homepage = "https://replicante.io"
+license = "MIT"
+repository = "https://github.com/replicante-io/repliagent-mongodb"
+
+# Exclude CI/dev files from cargo packages.
+exclude = [
+  "/.github",
+  "/ci",
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "^1.0"
+clap = { version = "^4.3", features = ["derive"] }
+serde = { version = "^1.0", features = ["derive"] }
+serde_yaml = "^0.9"
+thiserror = "^1.0"
+tokio = { version = "^1.28", features = ["full"] }
+
+[dependencies.replisdk]
+version = "^0.1.1"
+features = [
+  "agent-framework",
+]
+
+[patch.crates-io]
+# Patch the SDK against a local path for cooperative development.
+replisdk = { path = "../replisdk-rust" }
+# Patch the SDK against a git commit for incremental merges between releases.
+#replisdk = { git = "https://github.com/replicante-io/replisdk-rust.git", rev = "25c1464" }
