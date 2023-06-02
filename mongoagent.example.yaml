@@ -1,0 +1,30 @@
+---
+# For available general agent options check
+# https://github.com/replicante-io/replisdk-rust/blob/main/src/agent/framework/configuration.example.yaml
+
+# Address of the MongoDB node managed by the agent.
+node_address: "localhost:27017"
+
+# Configure MongoDB version detection strategies.
+version_detect:
+  # Run a command to detect the MongoDB version.
+  #
+  # By default the agent will run mongod --version to detect the version.
+  # Any command MUST return the version in the same format.
+  command: ~
+  #command:
+  #  # Arguments passed to the command to execute.
+  #  args: ["--version"]
+  #
+  #  # Name or path of the command to execute.
+  #  command: mongod
+  #
+  #  # Environment variables to set for the command execution.
+  #  env: {}
+
+  # Detect the version by reading it out of a file.
+  #
+  # This mode is only enabled if a path is provided.
+  #
+  # The contents of the file MUST be in the same format as the command output.
+  file: ~

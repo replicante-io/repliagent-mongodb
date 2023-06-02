@@ -6,12 +6,21 @@ use replisdk::agent::framework::AgentConf;
 use replisdk::agent::framework::AgentOptions;
 use replisdk::runtime::telemetry::TelemetryOptions;
 
+use crate::conf::Conf;
 use crate::Cli;
+
+mod info;
 
 const DEFAULT_CONF_PATH: &str = "mongoagent.yaml";
 
+/// Explicitly typed Agent builder for MongoDB agents.
+///
+/// Having this explicit type can defined decorator functions to set up the agent
+/// and surface type-related issues quickly and more clearly.
+type MongoAgent = Agent<Conf, info::MongoInfoFactory>;
+
 /// Configuration of MongoDB agents.
-type MongoConf = AgentConf<()>;
+type MongoConf = AgentConf<Conf>;
 
 /// Run a Replicante Agent for MongoDB nodes in ReplicaSet clusters.
 pub fn run(args: Cli) -> Result<()> {
@@ -29,10 +38,11 @@ async fn async_run(_args: Cli, conf: MongoConf) -> Result<()> {
         requests_metrics_prefix: "repliagent",
     };
     let telemetry = TelemetryOptions::for_sentry_release(crate::RELEASE_ID);
-    let agent = Agent::build()
+    let agent = MongoAgent::build()
         .configure(conf)
         .options(options)
-        .telemetry_options(telemetry);
+        .telemetry_options(telemetry)
+        .node_info(info::MongoInfo::factory());
 
     // Run the agent until error or shutdown.
     agent.run().await
@@ -40,15 +50,8 @@ async fn async_run(_args: Cli, conf: MongoConf) -> Result<()> {
 
 /* *** Agent process template ***
     Agent::build()
-        .agent_info(info::AgentInfo::new(...))
-        .watch_task(background::custom_worker_task(...))
-        .watch_task(background::store_monitor_task(...))
         .register_action(actions::custom(...))
         .register_action(actions::cluster::init(...))
         .register_action(actions::cluster::join(...))
-
-        / Once the agent is configured we can run it forever.
-        .run()
-        .await
 })
 */
