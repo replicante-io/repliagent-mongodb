@@ -1,0 +1,9 @@
+# MongoDB agent configuration for local development.
+telemetry:
+  logs:
+    level: DEBUG
+    mode: terminal
+
+node_id: n-fake
+version_detect:
+  file: 'dev-mongod-version.txt'

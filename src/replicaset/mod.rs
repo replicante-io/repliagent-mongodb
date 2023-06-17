@@ -26,6 +26,7 @@ type MongoConf = AgentConf<Conf>;
 pub fn run(args: Cli) -> Result<()> {
     let conf = crate::conf::load(DEFAULT_CONF_PATH, MongoConf::default())?;
     conf.runtime
+        .tokio
         .clone()
         .into_runtime()
         .expect("failed configuration of tokio runtime")
