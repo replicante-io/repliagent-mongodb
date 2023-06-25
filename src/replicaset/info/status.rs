@@ -3,25 +3,17 @@ use anyhow::Result;
 use mongodb::bson::Document;
 use mongodb::error::Error;
 use mongodb::error::ErrorKind;
-use mongodb::Client;
+use mongodb::error::Result as MdbResult;
 use slog::Logger;
 
 use replisdk::agent::models::NodeStatus;
 
 use crate::constants::MemberState;
-use crate::constants::ADMIN_DB;
 use crate::constants::REPL_SET_NOT_INITIALISED;
 
 /// Get the current [`NodeStatus`] of the managed node based on the replSetGetStatus command.
-pub async fn get(client: &Client, logger: &Logger) -> Result<NodeStatus> {
-    // Run the replSetGetStatus command.
-    let command = {
-        let mut command = Document::new();
-        command.insert("replSetGetStatus", 1);
-        command
-    };
-    let admin = client.database(ADMIN_DB);
-    let status = match admin.run_command(command, None).await {
+pub async fn get(result: MdbResult<Document>, logger: &Logger) -> Result<NodeStatus> {
+    let status = match result {
         Ok(status) => status,
         Err(error) => {
             slog::debug!(logger, "Error executing replSetGetStatus"; "server_error" => %error);
@@ -31,10 +23,7 @@ pub async fn get(client: &Client, logger: &Logger) -> Result<NodeStatus> {
     };
 
     // Determine the node status based on the replica set status.
-    let state = status
-        .get("myState")
-        .and_then(|state| state.as_i64())
-        .unwrap_or(6);
+    let state = status.get_i32("myState").unwrap_or(6);
     let state = match MemberState::try_from(state) {
         Ok(state) => state,
         Err(error) => {

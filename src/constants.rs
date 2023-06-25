@@ -1,10 +1,27 @@
 //! MongoDB Server constants
 use std::convert::TryFrom;
 
+use replisdk::agent::models::ShardRole;
+
 use crate::errors::MemberStateParseError;
 
+/// Prefix for MongoDB attributes.
+pub const ATTRIBUTE_PREFIX: &str = "mongodb.com";
+
+/// MongoDB command to get server parameters.
+pub const CMD_GET_PARAMETER: &str = "getParameter";
+
+/// MongoDB command to get collection statistics.
+pub const CMD_COLL_STATS: &str = "collStats";
+
+/// MongoDB command to get the current Replica Set status.
+pub const CMD_REPL_SET_GET_STATUS: &str = "replSetGetStatus";
+
 /// Name of the database to run admin commands against (also known as the admin database).
-pub const ADMIN_DB: &str = "admin";
+pub const DB_ADMIN: &str = "admin";
+
+/// Name of the database with local state on (also known as the local database).
+pub const DB_LOCAL: &str = "local";
 
 /// Error code returned by MongoDB when the Replica Set is not initialised no the node.
 pub const REPL_SET_NOT_INITIALISED: i32 = 94;
@@ -43,10 +60,10 @@ impl std::fmt::Display for MemberState {
     }
 }
 
-impl TryFrom<i64> for MemberState {
+impl TryFrom<i32> for MemberState {
     type Error = MemberStateParseError;
 
-    fn try_from(value: i64) -> Result<Self, Self::Error> {
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
         let value = match value {
             0 => MemberState::Startup,
             1 => MemberState::Primary,
@@ -61,5 +78,18 @@ impl TryFrom<i64> for MemberState {
             value => return Err(MemberStateParseError::from(value)),
         };
         Ok(value)
+    }
+}
+
+impl From<MemberState> for ShardRole {
+    fn from(value: MemberState) -> Self {
+        match value {
+            MemberState::Primary => ShardRole::Primary,
+            MemberState::Secondary => ShardRole::Secondary,
+            MemberState::Recovering | MemberState::Startup | MemberState::Startup2 => {
+                Self::Recovering
+            }
+            other => ShardRole::Other(other.to_string()),
+        }
     }
 }
