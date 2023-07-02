@@ -10,6 +10,7 @@ use mongodb::Client;
 use once_cell::sync::Lazy;
 
 use crate::conf::Conf;
+use crate::conf::Tls;
 use crate::errors::ClientError;
 
 /// Name passed to MongoDB server from the client.
@@ -59,10 +60,21 @@ fn connect(conf: &Conf) -> Result<Client> {
         .with_context(|| ClientError::address_not_valid(&conf.node_address))?;
     let options = ClientOptions::builder()
         .app_name(MONGO_CLIENT_APP_NAME.to_string())
+        // Ensure we connect directly and exclusively to our corresponding node.
         .direct_connection(true)
         .hosts(vec![server])
         // As we local connections only long server selection timeouts hurt us.
         .server_selection_timeout(Duration::from_millis(500))
+        // Additional client options.
+        .connect_timeout(conf.connection_timeout.map(std::time::Duration::from_secs))
+        .credential(
+            conf.credentials
+                .clone()
+                .map(mongodb::options::Credential::from),
+        )
+        .heartbeat_freq(conf.heartbeat_frequency.map(std::time::Duration::from_secs))
+        .max_idle_time(conf.max_idle_time.map(std::time::Duration::from_secs))
+        .tls(Tls::into_client_option(&conf.tls))
         .build();
     Client::with_options(options).context(ClientError::CreateFailed)
 }

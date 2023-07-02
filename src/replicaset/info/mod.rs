@@ -57,8 +57,6 @@ impl MongoInfo {
 
 impl MongoInfo {
     /// Lookup MongoDB current feature compatibility version (FCV).
-    ///
-    /// TODO: add caching
     async fn feature_compatibility_version(&self) -> Result<String> {
         // TODO(tracing): trace request to MongoDB.
         let command = {
@@ -82,8 +80,6 @@ impl MongoInfo {
     }
 
     /// Lookup oplog collection max size.
-    ///
-    /// TODO: add caching
     async fn oplog_size(&self) -> Result<i32> {
         // TODO(tracing): trace request to MongoDB.
         let command = {
@@ -103,8 +99,6 @@ impl MongoInfo {
     }
 
     /// Run the replSetGetStatus command against the DB.
-    ///
-    /// TODO: add caching (with very short, configurable, TTL).
     async fn replica_set_status(&self) -> MdbResult<Document> {
         // TODO(tracing): trace request to MongoDB.
         let command = {

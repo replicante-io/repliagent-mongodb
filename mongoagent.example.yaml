@@ -2,8 +2,52 @@
 # For available general agent options check
 # https://github.com/replicante-io/replisdk-rust/blob/main/src/agent/framework/configuration.example.yaml
 
+# Timeout in seconds for connections with the server to be established.
+connection_timeout: ~
+
+# MongoDB authentication credentials and mode.
+credentials: ~
+#credentials:
+#  # The authentication mechanism to use.
+#  #
+#  # Valid values are: GSS-API | MONGODB-X509 | PLAIN | SCRAM-SHA-1 | SCRAM-SHA-256
+#  mechanism: ~
+# 
+#  # Username to authenticate to MongoDB with.
+#  username: ~
+# 
+#  # Name of the users database to authenticate against.
+#  source: ~
+
+# The amount of time in seconds to wait between server health checks.
+heartbeat_frequency: ~
+
+# The amount of time in seconds to keep idle connections open for reuse.
+#
+# A value of zero means that connections will not be closed for being idle.
+max_idle_time: ~
+
 # Address of the MongoDB node managed by the agent.
 node_address: "localhost:27017"
+
+# TLS configuration for connections to the server.
+tls: ~
+#tls:
+#  # The client should ignore invalid certificates from the server.
+#  #
+#  # INSECURE: allowing invalid certificates can result in connections to compromised servers.
+#  allow_invalid_certificates: ~
+#
+#  # The client should ignore invalid certificate hostnames.
+#  #
+#  # INSECURE: allowing invalid hostnames can result in connections to compromised servers.
+#  allow_invalid_hostnames: ~
+#
+#  # Path to the CA file to verify the server certificate with.
+#  ca_file_path: ~
+#
+#  # Path to the client certificate to present to server.
+#  cert_key_file_path: ~
 
 # Configure MongoDB version detection strategies.
 version_detect:
