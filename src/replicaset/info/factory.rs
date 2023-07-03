@@ -25,11 +25,8 @@ impl NodeInfoFactory for MongoInfoFactory {
         // Configure the store version detection strategies.
         let version = super::version::configure_strategies(args.clone())?;
 
-        // Initialise the MongoDB client.
-        slog::debug!(args.telemetry.logger, "Initialising MongoDB client");
-        let client = crate::client::initialise(&args.conf.custom)?;
-
         // Create the MongoInfo instance.
+        let client = crate::client::global();
         Ok(MongoInfo {
             client,
             node_id,

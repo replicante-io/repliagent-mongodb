@@ -9,6 +9,9 @@ use mongodb::options::ServerAddress;
 use mongodb::Client;
 use once_cell::sync::Lazy;
 
+use replisdk::agent::framework::InitialiseHook;
+use replisdk::agent::framework::InitialiseHookArgs;
+
 use crate::conf::Conf;
 use crate::conf::Tls;
 use crate::errors::ClientError;
@@ -23,28 +26,49 @@ static GLOBAL_CLIENT: Lazy<RwLock<Option<Client>>> = Lazy::new(|| RwLock::new(No
 ///
 /// # Panics
 ///
-/// initialisation panics if a client has already been initialised.
-pub fn initialise(conf: &Conf) -> Result<Client> {
-    // Obtain a lock to initialise the global client.
-    let mut global_client = GLOBAL_CLIENT
-        .write()
-        .expect("GLOBAL_CLIENT RwLock poisoned");
+/// Initialisation panics if a client has already been initialised.
+pub struct Initialise {
+    _protected_construct: (),
+}
 
-    // If the global client is already initialised panic (without poisoning the lock).
-    if global_client.is_some() {
-        drop(global_client);
-        panic!("MongoDB client already initialised");
+#[async_trait::async_trait]
+impl InitialiseHook for Initialise {
+    type Conf = Conf;
+    async fn initialise<'a>(&self, args: &InitialiseHookArgs<'a, Self::Conf>) -> Result<()> {
+        // Obtain a lock to initialise the global client.
+        let mut global_client = GLOBAL_CLIENT
+            .write()
+            .expect("GLOBAL_CLIENT RwLock poisoned");
+
+        // If the global client is already initialised panic (without poisoning the lock).
+        if global_client.is_some() {
+            drop(global_client);
+            panic!("MongoDB client already initialised");
+        }
+
+        // Initialise the client and, on success update the global client.
+        slog::debug!(args.telemetry.logger, "Initialising MongoDB client");
+        let client = connect(&args.conf.custom)?;
+        *global_client = Some(client);
+        Ok(())
     }
+}
 
-    // Initialise the client and, on success update the global client.
-    let client = connect(conf)?;
-    *global_client = Some(client.clone());
-    Ok(client)
+/// Return an initialisation hook to configure the MongoDB client for the process.
+pub fn initialiser() -> Initialise {
+    Initialise {
+        _protected_construct: (),
+    }
 }
 
 /// Get the globally initialised MongoDB client.
-// TODO: remove if unused by the time actions are defined.
-#[allow(dead_code)]
+///
+/// # Panics
+///
+/// Panics if:
+///
+/// - The MongoDB client has not been initialised.
+/// - Initialisation of the MongoDB client itself panicked.
 pub fn global() -> Client {
     GLOBAL_CLIENT
         .read()

@@ -43,7 +43,8 @@ async fn async_run(_args: Cli, conf: MongoConf) -> Result<()> {
         .configure(conf)
         .options(options)
         .telemetry_options(telemetry)
-        .node_info(info::MongoInfo::factory());
+        .node_info(info::MongoInfo::factory())
+        .initialise_with(crate::client::initialiser());
 
     // Run the agent until error or shutdown.
     agent.run().await
