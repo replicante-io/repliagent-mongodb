@@ -9,3 +9,6 @@ target/
 # IDE
 .vscode/**
 !.vscode/settings.json
+
+# Development files
+agent.db

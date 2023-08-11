@@ -9,6 +9,7 @@ use replisdk::runtime::telemetry::TelemetryOptions;
 use crate::conf::Conf;
 use crate::Cli;
 
+mod actions;
 mod info;
 
 const DEFAULT_CONF_PATH: &str = "mongoagent.yaml";
@@ -24,7 +25,8 @@ type MongoConf = AgentConf<Conf>;
 
 /// Run a Replicante Agent for MongoDB nodes in ReplicaSet clusters.
 pub fn run(args: Cli) -> Result<()> {
-    let conf = crate::conf::load(DEFAULT_CONF_PATH, MongoConf::default())?;
+    let mut conf = crate::conf::load(DEFAULT_CONF_PATH, MongoConf::default())?;
+    crate::conf::apply_overrides(&mut conf.custom)?;
     conf.runtime
         .tokio
         .clone()
@@ -34,17 +36,22 @@ pub fn run(args: Cli) -> Result<()> {
 }
 
 async fn async_run(_args: Cli, conf: MongoConf) -> Result<()> {
-    // Configure the agent process using the `Agent` builder.
+    // SAFETY: Existence of this value if guaranteed by `crate::conf::apply_overrides`.
+    let host = conf.custom.addresses.cluster.clone().unwrap();
     let options = AgentOptions {
         requests_metrics_prefix: "repliagent",
     };
     let telemetry = TelemetryOptions::for_sentry_release(crate::RELEASE_ID);
+
+    // Configure the agent process using the `Agent` builder.
     let agent = MongoAgent::build()
         .configure(conf)
         .options(options)
         .telemetry_options(telemetry)
         .node_info(info::MongoInfo::factory())
-        .initialise_with(crate::client::initialiser());
+        .initialise_with(crate::client::initialiser())
+        .register_actions(replisdk::agent::framework::actions::wellknown::test::all())
+        .register_action(actions::cluster::Init::metadata(host));
 
     // Run the agent until error or shutdown.
     agent.run().await

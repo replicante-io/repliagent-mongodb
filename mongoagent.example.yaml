@@ -2,6 +2,14 @@
 # For available general agent options check
 # https://github.com/replicante-io/replisdk-rust/blob/main/src/agent/framework/configuration.example.yaml
 
+# Network addresses for the MongoDB node depending on intended client.
+addresses:
+  # MongoDB node address within the replica set.
+  cluster: ~
+
+  # Address of the MongoDB node managed by the agent.
+  local: "localhost:27017"
+
 # Timeout in seconds for connections with the server to be established.
 connection_timeout: ~
 
@@ -26,9 +34,6 @@ heartbeat_frequency: ~
 #
 # A value of zero means that connections will not be closed for being idle.
 max_idle_time: ~
-
-# Address of the MongoDB node managed by the agent.
-node_address: "localhost:27017"
 
 # TLS configuration for connections to the server.
 tls: ~

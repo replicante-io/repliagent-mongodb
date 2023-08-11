@@ -16,6 +16,8 @@ use crate::conf::Conf;
 use crate::conf::Tls;
 use crate::errors::ClientError;
 
+pub mod admin;
+
 /// Name passed to MongoDB server from the client.
 const MONGO_CLIENT_APP_NAME: &str = "repliagent-mongo";
 
@@ -80,8 +82,8 @@ pub fn global() -> Client {
 
 /// Create a new MongoDC client connected to a specific node.
 fn connect(conf: &Conf) -> Result<Client> {
-    let server = ServerAddress::parse(&conf.node_address)
-        .with_context(|| ClientError::address_not_valid(&conf.node_address))?;
+    let server = ServerAddress::parse(&conf.addresses.local)
+        .with_context(|| ClientError::address_not_valid(&conf.addresses.local))?;
     let options = ClientOptions::builder()
         .app_name(MONGO_CLIENT_APP_NAME.to_string())
         // Ensure we connect directly and exclusively to our corresponding node.

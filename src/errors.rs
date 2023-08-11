@@ -23,6 +23,14 @@ impl ClientError {
     }
 }
 
+/// Errors related to loading or validating agent configuration.
+#[derive(Debug, thiserror::Error)]
+pub enum ConfError {
+    /// The node cluster address is missing from both configuration and environment.
+    #[error("the node cluster address is missing from both configuration and environment")]
+    NoClusterAddress,
+}
+
 /// Unrecognised member state code.
 #[derive(Debug, thiserror::Error)]
 #[error("unrecognised member state code {state}")]

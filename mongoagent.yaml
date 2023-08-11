@@ -1,4 +1,7 @@
 # MongoDB agent configuration for local development.
+addresses:
+  cluster: "localhost:27017"
+
 telemetry:
   logs:
     level: DEBUG
@@ -6,4 +9,4 @@ telemetry:
 
 node_id: n-fake
 version_detect:
-  file: 'dev-mongod-version.txt'
+  file: "dev-mongod-version.txt"

@@ -9,7 +9,6 @@ use slog::Logger;
 use replisdk::agent::models::NodeStatus;
 
 use crate::constants::MemberState;
-use crate::constants::REPL_SET_NOT_INITIALISED;
 
 /// Get the current [`NodeStatus`] of the managed node based on the replSetGetStatus command.
 pub async fn get(result: MdbResult<Document>, logger: &Logger) -> Result<NodeStatus> {
@@ -64,10 +63,8 @@ async fn status_for_error(error: Error) -> Result<NodeStatus> {
     }
 
     // Check for the server error response indicating the replica set is not initialised.
-    if let ErrorKind::Command(ref inner) = *error.kind {
-        if inner.code == REPL_SET_NOT_INITIALISED {
-            return Ok(NodeStatus::NotInCluster);
-        }
+    if crate::client::admin::replica_set_not_initialised(&error) {
+        return Ok(NodeStatus::NotInCluster);
     }
 
     // Consider all other errors unknown.

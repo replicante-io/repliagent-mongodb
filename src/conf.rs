@@ -9,11 +9,42 @@ use serde::Serialize;
 
 use replisdk::agent::framework::StoreVersionCommandConf;
 
+const AGENT_ADDRESS_CLUSTER: &str = "RA_ADDRESS_CLUSTER";
 const MONGO_CREDENTIAL_PASSWORD: &str = "MONGO_PASSWORD";
+
+/// Network addresses for the MongoDB node depending on intended client.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Addresses {
+    /// MongoDB node address within the replica set.
+    #[serde(default)]
+    pub cluster: Option<String>,
+
+    /// MongoDB node address for the agent to connect to.
+    #[serde(default = "Addresses::default_local")]
+    pub local: String,
+}
+
+impl Addresses {
+    fn default_local() -> String {
+        "localhost:27017".into()
+    }
+}
+
+impl Default for Addresses {
+    fn default() -> Self {
+        Addresses {
+            cluster: None,
+            local: Self::default_local(),
+        }
+    }
+}
 
 /// Agent configuration specific to MongoDB.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Conf {
+    /// Network addresses for the MongoDB node depending on intended client.
+    pub addresses: Addresses,
+    
     /// Timeout in seconds for connections with the server to be established.
     #[serde(default)]
     pub connection_timeout: Option<u64>,
@@ -31,10 +62,6 @@ pub struct Conf {
     /// A value of zero means that connections will not be closed for being idle.
     pub max_idle_time: Option<u64>,
 
-    /// MongoDB node address for the agent to connect to.
-    #[serde(default = "Conf::default_node_address")]
-    pub node_address: String,
-
     /// TLS configuration for connections to the server.
     #[serde(default)]
     pub tls: Option<Tls>,
@@ -44,20 +71,14 @@ pub struct Conf {
     pub version_detect: VersionDetect,
 }
 
-impl Conf {
-    fn default_node_address() -> String {
-        "localhost:27017".into()
-    }
-}
-
 impl Default for Conf {
     fn default() -> Self {
         Conf {
+            addresses: Addresses::default(),
             connection_timeout: None,
             credentials: None,
             heartbeat_frequency: None,
             max_idle_time: None,
-            node_address: Self::default_node_address(),
             tls: None,
             version_detect: VersionDetect::default(),
         }
@@ -94,22 +115,6 @@ pub struct VersionDetect {
     /// Optional file to detect the MongoDB version from.
     #[serde(default)]
     pub file: Option<String>,
-}
-
-/// Load the agent configuration from file, if the file exists.
-pub fn load<C>(path: &str, default: C) -> Result<C>
-where
-    C: serde::de::DeserializeOwned,
-{
-    // Check if the configuration file exists and return the default if it does not.
-    if !PathBuf::from(path).exists() {
-        return Ok(default);
-    }
-
-    // Load and deserialize the agent configuration.
-    let file = File::open(path).with_context(|| ConfError::Open(path.into()))?;
-    let conf = serde_yaml::from_reader(file).with_context(|| ConfError::Load(path.into()))?;
-    Ok(conf)
 }
 
 /// MongoDB authentication credentials and mode.
@@ -217,4 +222,33 @@ impl Tls {
             .build();
         mongodb::options::Tls::Enabled(options)
     }
+}
+
+/// Apply configuration overrides from the process environment.
+pub fn apply_overrides(conf: &mut Conf) -> Result<()> {
+    if let Ok(address) = std::env::var(AGENT_ADDRESS_CLUSTER) {
+        conf.addresses.cluster = Some(address);
+    }
+
+    // Ensure addresses.cluster is set once overrides are applied.
+    if conf.addresses.cluster.is_none() {
+        anyhow::bail!(crate::errors::ConfError::NoClusterAddress);
+    }
+    Ok(())
+}
+
+/// Load the agent configuration from file, if the file exists.
+pub fn load<C>(path: &str, default: C) -> Result<C>
+where
+    C: serde::de::DeserializeOwned,
+{
+    // Check if the configuration file exists and return the default if it does not.
+    if !PathBuf::from(path).exists() {
+        return Ok(default);
+    }
+
+    // Load and deserialize the agent configuration.
+    let file = File::open(path).with_context(|| ConfError::Open(path.into()))?;
+    let conf = serde_yaml::from_reader(file).with_context(|| ConfError::Load(path.into()))?;
+    Ok(conf)
 }

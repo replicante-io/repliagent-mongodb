@@ -2,7 +2,6 @@
 use anyhow::Context;
 use anyhow::Result;
 use mongodb::bson::Document;
-use mongodb::error::Result as MdbResult;
 use mongodb::Client;
 use once_cell::sync::Lazy;
 
@@ -22,10 +21,10 @@ mod version;
 
 pub use self::factory::MongoInfoFactory;
 
+use crate::client::admin::replica_set_status;
 use crate::constants::ATTRIBUTE_PREFIX;
 use crate::constants::CMD_COLL_STATS;
 use crate::constants::CMD_GET_PARAMETER;
-use crate::constants::CMD_REPL_SET_GET_STATUS;
 use crate::constants::DB_ADMIN;
 use crate::constants::DB_LOCAL;
 use crate::errors::MongoInfoError;
@@ -97,18 +96,6 @@ impl MongoInfo {
             .context(MongoInfoError::OplogStatsNoSize)?;
         Ok(max_size)
     }
-
-    /// Run the replSetGetStatus command against the DB.
-    async fn replica_set_status(&self) -> MdbResult<Document> {
-        // TODO(tracing): trace request to MongoDB.
-        let command = {
-            let mut command = Document::new();
-            command.insert(CMD_REPL_SET_GET_STATUS, 1);
-            command
-        };
-        let admin = self.client.database(DB_ADMIN);
-        admin.run_command(command, None).await
-    }
 }
 
 #[async_trait::async_trait]
@@ -116,7 +103,7 @@ impl NodeInfo for MongoInfo {
     type Context = DefaultContext;
 
     async fn node_info(&self, context: &Self::Context) -> Result<Node> {
-        let rs = self.replica_set_status().await;
+        let rs = replica_set_status(&self.client).await;
         let node_status = self::status::get(rs, &context.logger).await?;
         let store_version = self.version.version(context).await?;
         let node = Node {
@@ -131,8 +118,7 @@ impl NodeInfo for MongoInfo {
     }
 
     async fn shards(&self, _: &Self::Context) -> Result<ShardsInfo> {
-        let status = self
-            .replica_set_status()
+        let status = replica_set_status(&self.client)
             .await
             .context(MongoInfoError::ReplicaSetStatusUnknown)?;
         let shard = shard::shard(status)?;
@@ -143,8 +129,7 @@ impl NodeInfo for MongoInfo {
 
     async fn store_info(&self, _: &Self::Context) -> Result<StoreExtras> {
         // Get the cluster ID from the RS status.
-        let status = self
-            .replica_set_status()
+        let status = replica_set_status(&self.client)
             .await
             .context(MongoInfoError::ReplicaSetStatusUnknown)?;
         let name = status
