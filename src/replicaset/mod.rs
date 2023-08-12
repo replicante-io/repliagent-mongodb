@@ -51,6 +51,7 @@ async fn async_run(_args: Cli, conf: MongoConf) -> Result<()> {
         .node_info(info::MongoInfo::factory())
         .initialise_with(crate::client::initialiser())
         .register_actions(replisdk::agent::framework::actions::wellknown::test::all())
+        .register_action(actions::cluster::Add::metadata())
         .register_action(actions::cluster::Init::metadata(host));
 
     // Run the agent until error or shutdown.

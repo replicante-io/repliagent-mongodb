@@ -40,11 +40,11 @@ impl Default for Addresses {
 }
 
 /// Agent configuration specific to MongoDB.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Conf {
     /// Network addresses for the MongoDB node depending on intended client.
     pub addresses: Addresses,
-    
+
     /// Timeout in seconds for connections with the server to be established.
     #[serde(default)]
     pub connection_timeout: Option<u64>,
@@ -69,20 +69,6 @@ pub struct Conf {
     /// Configure MongoDB version detection strategies.
     #[serde(default)]
     pub version_detect: VersionDetect,
-}
-
-impl Default for Conf {
-    fn default() -> Self {
-        Conf {
-            addresses: Addresses::default(),
-            connection_timeout: None,
-            credentials: None,
-            heartbeat_frequency: None,
-            max_idle_time: None,
-            tls: None,
-            version_detect: VersionDetect::default(),
-        }
-    }
 }
 
 /// Errors while loading server configuration.

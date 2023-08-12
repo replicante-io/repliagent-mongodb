@@ -30,5 +30,5 @@ pub fn replica_set_not_initialised(error: &Error) -> bool {
     if let ErrorKind::Command(ref inner) = *error.kind {
         return inner.code == REPL_SET_NOT_INITIALISED;
     }
-    return false;
+    false
 }
