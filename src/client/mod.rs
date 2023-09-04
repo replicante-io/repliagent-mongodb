@@ -29,9 +29,7 @@ static GLOBAL_CLIENT: Lazy<RwLock<Option<Client>>> = Lazy::new(|| RwLock::new(No
 /// # Panics
 ///
 /// Initialisation panics if a client has already been initialised.
-pub struct Initialise {
-    _protected_construct: (),
-}
+pub struct Initialise;
 
 #[async_trait::async_trait]
 impl InitialiseHook for Initialise {
@@ -54,30 +52,6 @@ impl InitialiseHook for Initialise {
         *global_client = Some(client);
         Ok(())
     }
-}
-
-/// Return an initialisation hook to configure the MongoDB client for the process.
-pub fn initialiser() -> Initialise {
-    Initialise {
-        _protected_construct: (),
-    }
-}
-
-/// Get the globally initialised MongoDB client.
-///
-/// # Panics
-///
-/// Panics if:
-///
-/// - The MongoDB client has not been initialised.
-/// - Initialisation of the MongoDB client itself panicked.
-pub fn global() -> Client {
-    GLOBAL_CLIENT
-        .read()
-        .expect("GLOBAL_CLIENT RwLock poisoned")
-        .as_ref()
-        .expect("global MongoDB client is not initialised")
-        .clone()
 }
 
 /// Create a new MongoDC client connected to a specific node.
@@ -103,4 +77,21 @@ fn connect(conf: &Conf) -> Result<Client> {
         .tls(Tls::into_client_option(&conf.tls))
         .build();
     Client::with_options(options).context(ClientError::CreateFailed)
+}
+
+/// Get the globally initialised MongoDB client.
+///
+/// # Panics
+///
+/// Panics if:
+///
+/// - The MongoDB client has not been initialised.
+/// - Initialisation of the MongoDB client itself panicked.
+pub fn global() -> Client {
+    GLOBAL_CLIENT
+        .read()
+        .expect("GLOBAL_CLIENT RwLock poisoned")
+        .as_ref()
+        .expect("global MongoDB client is not initialised")
+        .clone()
 }

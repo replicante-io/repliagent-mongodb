@@ -9,7 +9,9 @@ mod client;
 mod conf;
 mod constants;
 mod errors;
+mod metrics;
 mod replicaset;
+mod trace;
 
 use self::cli::Cli;
 use self::cli::Mode;

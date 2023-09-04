@@ -5,7 +5,12 @@ addresses:
 telemetry:
   logs:
     level: DEBUG
+    levels:
+      '<unknown>': INFO
+      'replisdk::runtime::telemetry::opentel': ERROR
     mode: terminal
+  otel:
+    enabled: false
 
 node_id: n-fake
 version_detect:

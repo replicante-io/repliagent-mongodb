@@ -5,22 +5,34 @@
 //!
 //! ## Arguments
 //!
-//! TODO
+//! Arguments are required unless otherwise noted.
+//!
+//! The action has the following arguments:
+//!
+//! - `id` [OPTIONAL]: Index to use for the new node `_id` attribute.
+//!   If not set, largest integer not currently in use is assigned.
+//! - `host`: Value of the new node for the `host` attribute.
 //!
 //! [`replSetReconfig`]: https://www.mongodb.com/docs/manual/reference/command/replSetReconfig/
-use anyhow::Context;
+use anyhow::Context as AnyContext;
 use anyhow::Result;
+use opentelemetry_api::trace::FutureExt;
 use serde::Deserialize;
 use serde::Serialize;
 
 use replisdk::agent::framework::actions::ActionHandler;
 use replisdk::agent::framework::actions::ActionHandlerChanges as Changes;
 use replisdk::agent::framework::actions::ActionMetadata;
-use replisdk::agent::framework::DefaultContext;
 use replisdk::agent::models::ActionExecution;
 use replisdk::agent::models::ActionExecutionPhase;
+use replisdk::context::Context;
+use replisdk::utils::metrics::CountFutureErrExt;
+use replisdk::utils::trace::TraceFutureStdErrExt;
 
+use crate::constants::CMD_REPL_SET_GET_CONFIG;
+use crate::constants::CMD_REPL_SET_RECONFIG;
 use crate::constants::DB_ADMIN;
+use crate::metrics::observe_mongodb_op;
 
 const RS_ATTR_MEMBER_ID: &str = "_id";
 const RS_ATTR_MEMBERS: &str = "members";
@@ -38,23 +50,27 @@ impl Add {
 
 #[async_trait::async_trait]
 impl ActionHandler for Add {
-    async fn invoke(&self, context: &DefaultContext, action: &ActionExecution) -> Result<Changes> {
+    async fn invoke(&self, context: &Context, action: &ActionExecution) -> Result<Changes> {
         let args: AddArgs =
             serde_json::from_value(action.args.clone()).context(AddError::InvalidArgs)?;
         let client = crate::client::global();
 
         // Get current RS configuration.
         let admin = client.database(DB_ADMIN);
-        let command = mongodb::bson::doc! {"replSetGetConfig": 1};
-        // TODO(tracing): trace request to MongoDB.
-        // TODO(metrics): count request to MongoDB.
+        let command = mongodb::bson::doc! {CMD_REPL_SET_GET_CONFIG: 1};
+        let trace = crate::trace::mongodb_client_context(CMD_REPL_SET_GET_CONFIG);
+        let (err_count, timer) = observe_mongodb_op(CMD_REPL_SET_GET_CONFIG);
         let rs = admin
             .run_command(command, None)
+            .count_on_err(err_count)
+            .trace_on_err_with_status()
+            .with_context(trace)
             .await
             .context(AddError::Failed)?
             .remove("config")
             .ok_or_else(|| anyhow::anyhow!("server did not return replica set configuration"))
             .context(AddError::RsConf)?;
+        drop(timer);
         let mut rs = match rs {
             mongodb::bson::Bson::Document(rs) => rs,
             _ => {
@@ -92,11 +108,14 @@ impl ActionHandler for Add {
             .context(AddError::RsAttr(RS_ATTR_VERSION))?;
         *version += 1;
 
-        let command = mongodb::bson::doc! {"replSetReconfig": rs};
-        // TODO(tracing): trace request to MongoDB.
-        // TODO(metrics): count request to MongoDB.
+        let command = mongodb::bson::doc! {CMD_REPL_SET_RECONFIG: rs};
+        let trace = crate::trace::mongodb_client_context(CMD_REPL_SET_RECONFIG);
+        let (err_count, _timer) = observe_mongodb_op(CMD_REPL_SET_RECONFIG);
         admin
             .run_command(command, None)
+            .count_on_err(err_count)
+            .trace_on_err_with_status()
+            .with_context(trace)
             .await
             .context(AddError::Failed)?;
         let changes = Changes::to(ActionExecutionPhase::Done);

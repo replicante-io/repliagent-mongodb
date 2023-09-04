@@ -2,7 +2,6 @@
 use anyhow::Result;
 
 use replisdk::agent::framework::detect_node_id;
-use replisdk::agent::framework::DefaultContext;
 use replisdk::agent::framework::NodeInfoFactory;
 use replisdk::agent::framework::NodeInfoFactoryArgs;
 
@@ -15,7 +14,6 @@ pub struct MongoInfoFactory {}
 #[async_trait::async_trait]
 impl NodeInfoFactory for MongoInfoFactory {
     type Conf = Conf;
-    type Context = DefaultContext;
     type NodeInfo = MongoInfo;
 
     async fn factory<'a>(&self, args: NodeInfoFactoryArgs<'a, Self::Conf>) -> Result<MongoInfo> {

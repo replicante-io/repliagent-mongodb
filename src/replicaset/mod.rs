@@ -41,7 +41,9 @@ async fn async_run(_args: Cli, conf: MongoConf) -> Result<()> {
     let options = AgentOptions {
         requests_metrics_prefix: "repliagent",
     };
-    let telemetry = TelemetryOptions::for_sentry_release(crate::RELEASE_ID);
+    let telemetry = TelemetryOptions::for_sentry_release(crate::RELEASE_ID)
+        .for_app(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+        .finish();
 
     // Configure the agent process using the `Agent` builder.
     let agent = MongoAgent::build()
@@ -49,7 +51,8 @@ async fn async_run(_args: Cli, conf: MongoConf) -> Result<()> {
         .options(options)
         .telemetry_options(telemetry)
         .node_info(info::MongoInfo::factory())
-        .initialise_with(crate::client::initialiser())
+        .initialise_with(crate::client::Initialise)
+        .initialise_with(crate::metrics::Register)
         .register_actions(replisdk::agent::framework::actions::wellknown::test::all())
         .register_action(actions::cluster::Add::metadata())
         .register_action(actions::cluster::Init::metadata(host));
@@ -57,11 +60,3 @@ async fn async_run(_args: Cli, conf: MongoConf) -> Result<()> {
     // Run the agent until error or shutdown.
     agent.run().await
 }
-
-/* *** Agent process template ***
-    Agent::build()
-        .register_action(actions::custom(...))
-        .register_action(actions::cluster::init(...))
-        .register_action(actions::cluster::join(...))
-})
-*/

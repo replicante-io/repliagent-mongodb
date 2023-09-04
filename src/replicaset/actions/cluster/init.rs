@@ -16,19 +16,26 @@
 //!
 //! [`getCmdLineOpts`]: https://www.mongodb.com/docs/manual/reference/command/getCmdLineOpts/
 //! [`replSetInitiate`]: https://www.mongodb.com/docs/manual/reference/command/replSetInitiate/
-use anyhow::Context;
+use anyhow::Context as AnyContext;
 use anyhow::Result;
+use opentelemetry_api::trace::FutureExt;
 use serde::Deserialize;
 use serde::Serialize;
 
 use replisdk::agent::framework::actions::ActionHandler;
 use replisdk::agent::framework::actions::ActionHandlerChanges as Changes;
 use replisdk::agent::framework::actions::ActionMetadata;
-use replisdk::agent::framework::DefaultContext;
 use replisdk::agent::models::ActionExecution;
 use replisdk::agent::models::ActionExecutionPhase;
+use replisdk::context::Context;
+use replisdk::utils::metrics::CountFutureErrExt;
+use replisdk::utils::trace::TraceFutureErrExt;
+use replisdk::utils::trace::TraceFutureStdErrExt;
 
+use crate::constants::CMD_GET_CMD_LINE_OPTS;
+use crate::constants::CMD_REPL_SET_INIT;
 use crate::constants::DB_ADMIN;
+use crate::metrics::observe_mongodb_op;
 
 /// Initialise a MongoDB Replica Set cluster.
 pub struct Init {
@@ -45,7 +52,7 @@ impl Init {
 
 #[async_trait::async_trait]
 impl ActionHandler for Init {
-    async fn invoke(&self, context: &DefaultContext, action: &ActionExecution) -> Result<Changes> {
+    async fn invoke(&self, context: &Context, action: &ActionExecution) -> Result<Changes> {
         let args = serde_json::from_value::<Option<InitArgs>>(action.args.clone())
             .context(InitError::InvalidArgs)?
             .unwrap_or_default();
@@ -61,18 +68,30 @@ impl ActionHandler for Init {
 
         // Get ReplicaSet ID from getCmdLineOpts.
         let admin = client.database(DB_ADMIN);
-        let command = mongodb::bson::doc! {"getCmdLineOpts": 1};
-        // TODO(tracing): trace request to MongoDB.
-        // TODO(metrics): count request to MongoDB.
-        let conf = admin
-            .run_command(command, None)
-            .await
-            .context(InitError::Failed)?;
-        let rs_id = conf
-            .get_document("parsed")
-            .and_then(|parsed| parsed.get_document("replication"))
-            .and_then(|replication| replication.get_str("replSetName"))
-            .context(InitError::NoReplicaSetName)?;
+        let command = mongodb::bson::doc! {CMD_GET_CMD_LINE_OPTS: 1};
+
+        let trace = crate::trace::mongodb_client_context(CMD_GET_CMD_LINE_OPTS);
+        let (err_count, timer) = observe_mongodb_op(CMD_GET_CMD_LINE_OPTS);
+        // Wrap the command to be traced into an anonymous future to decorate.
+        let observed = async {
+            let conf = admin
+                .run_command(command, None)
+                .await
+                .context(InitError::Failed)?;
+            let rs_id = conf
+                .get_document("parsed")
+                .and_then(|parsed| parsed.get_document("replication"))
+                .and_then(|replication| replication.get_str("replSetName"))
+                .context(InitError::NoReplicaSetName)?
+                .to_owned();
+            Result::Ok(rs_id)
+        };
+        // Decorate the operation once for all return clauses and execute.
+        let rs_id = TraceFutureErrExt::trace_on_err_with_status(observed)
+            .count_on_err(err_count)
+            .with_context(trace)
+            .await?;
+        drop(timer);
 
         // Build replica set initialisation document.
         let mut init = mongodb::bson::doc! {
@@ -88,11 +107,14 @@ impl ActionHandler for Init {
 
         // Initialise replica set.
         slog::info!(context.logger, "Initialising MongoDB replica set"; "conf" => %init);
-        let command = mongodb::bson::doc! {"replSetInitiate": init};
-        // TODO(tracing): trace request to MongoDB.
-        // TODO(metrics): count request to MongoDB.
+        let command = mongodb::bson::doc! {CMD_REPL_SET_INIT: init};
+        let trace = crate::trace::mongodb_client_context(CMD_REPL_SET_INIT);
+        let (err_count, _timer) = observe_mongodb_op(CMD_REPL_SET_INIT);
         admin
             .run_command(command, None)
+            .count_on_err(err_count)
+            .trace_on_err_with_status()
+            .with_context(trace)
             .await
             .context(InitError::Failed)?;
         let changes = Changes::to(ActionExecutionPhase::Done);

@@ -8,20 +8,35 @@ use crate::errors::MemberStateParseError;
 /// Prefix for MongoDB attributes.
 pub const ATTRIBUTE_PREFIX: &str = "mongodb.com";
 
+/// MongoDB command to get server command line and configuration.
+pub const CMD_GET_CMD_LINE_OPTS: &str = "getCmdLineOpts";
+
 /// MongoDB command to get server parameters.
 pub const CMD_GET_PARAMETER: &str = "getParameter";
 
 /// MongoDB command to get collection statistics.
 pub const CMD_COLL_STATS: &str = "collStats";
 
+/// MongoDB command to get the current Replica Set configuration.
+pub const CMD_REPL_SET_GET_CONFIG: &str = "replSetGetConfig";
+
 /// MongoDB command to get the current Replica Set status.
 pub const CMD_REPL_SET_GET_STATUS: &str = "replSetGetStatus";
+
+/// MongoDB command to initialise a new Replica Set.
+pub const CMD_REPL_SET_INIT: &str = "replSetInitiate";
+
+/// MongoDB command to get the current Replica Set configuration.
+pub const CMD_REPL_SET_RECONFIG: &str = "replSetReconfig";
 
 /// Name of the database to run admin commands against (also known as the admin database).
 pub const DB_ADMIN: &str = "admin";
 
 /// Name of the database with local state on (also known as the local database).
 pub const DB_LOCAL: &str = "local";
+
+/// Parameter to the [`CMD_GET_PARAMETER`] command for retrieving the current FCV.
+pub const FEATURE_COMPATIBILITY_VERSION: &str = "featureCompatibilityVersion";
 
 /// Error code returned by MongoDB when the Replica Set is not initialised no the node.
 pub const REPL_SET_NOT_INITIALISED: i32 = 94;

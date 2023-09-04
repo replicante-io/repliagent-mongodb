@@ -1,11 +1,11 @@
 //! NodeInfo implementation for ReplicaSet nodes.
-use anyhow::Context;
+use anyhow::Context as AnyContext;
 use anyhow::Result;
 use mongodb::bson::Document;
 use mongodb::Client;
 use once_cell::sync::Lazy;
+use opentelemetry_api::trace::FutureExt;
 
-use replisdk::agent::framework::DefaultContext;
 use replisdk::agent::framework::NodeInfo;
 use replisdk::agent::framework::StoreVersionChain;
 use replisdk::agent::framework::StoreVersionStrategy;
@@ -13,6 +13,9 @@ use replisdk::agent::models::AttributesMap;
 use replisdk::agent::models::Node;
 use replisdk::agent::models::ShardsInfo;
 use replisdk::agent::models::StoreExtras;
+use replisdk::context::Context;
+use replisdk::utils::metrics::CountFutureErrExt;
+use replisdk::utils::trace::TraceFutureErrExt;
 
 mod factory;
 mod shard;
@@ -27,7 +30,9 @@ use crate::constants::CMD_COLL_STATS;
 use crate::constants::CMD_GET_PARAMETER;
 use crate::constants::DB_ADMIN;
 use crate::constants::DB_LOCAL;
+use crate::constants::FEATURE_COMPATIBILITY_VERSION;
 use crate::errors::MongoInfoError;
+use crate::metrics::observe_mongodb_op;
 
 /// Store ID reported for nodes.
 const STORE_ID: &str = "mongo.replica";
@@ -57,52 +62,81 @@ impl MongoInfo {
 impl MongoInfo {
     /// Lookup MongoDB current feature compatibility version (FCV).
     async fn feature_compatibility_version(&self) -> Result<String> {
-        // TODO(tracing): trace request to MongoDB.
+        let trace = crate::trace::mongodb_client_context(FEATURE_COMPATIBILITY_VERSION);
+        let (err_count, _timer) = observe_mongodb_op(FEATURE_COMPATIBILITY_VERSION);
+
+        let admin = self.client.database(DB_ADMIN);
         let command = {
             let mut command = Document::new();
             command.insert(CMD_GET_PARAMETER, 1);
-            command.insert("featureCompatibilityVersion", 1);
+            command.insert(FEATURE_COMPATIBILITY_VERSION, 1);
             command
         };
-        let admin = self.client.database(DB_ADMIN);
-        let params = admin.run_command(command, None).await?;
-        match params.get_document("featureCompatibilityVersion") {
-            Err(error) => Err(anyhow::anyhow!(error).context(MongoInfoError::FeatCompatVerUnknown)),
-            Ok(doc) => {
-                let version = doc
-                    .get_str("version")
-                    .context(MongoInfoError::FeatCompatVerNotSet)?
-                    .to_string();
-                Ok(version)
+
+        // Wrap the command to be traced into an anonymous future to decorate.
+        let observed = async {
+            let params = admin
+                .run_command(command, None)
+                .await
+                .context(MongoInfoError::FeatCompatVerUnknown)?;
+            match params.get_document(FEATURE_COMPATIBILITY_VERSION) {
+                Err(error) => {
+                    Err(anyhow::anyhow!(error).context(MongoInfoError::FeatCompatVerUnknown))
+                }
+                Ok(doc) => {
+                    let version = doc
+                        .get_str("version")
+                        .context(MongoInfoError::FeatCompatVerNotSet)?
+                        .to_string();
+                    Ok(version)
+                }
             }
-        }
+        };
+
+        // Decorate the operation once for all return clauses and execute.
+        observed
+            .count_on_err(err_count)
+            .trace_on_err_with_status()
+            .with_context(trace)
+            .await
     }
 
     /// Lookup oplog collection max size.
     async fn oplog_size(&self) -> Result<i32> {
-        // TODO(tracing): trace request to MongoDB.
+        let trace = crate::trace::mongodb_client_context(CMD_COLL_STATS);
+        let (err_count, _timer) = observe_mongodb_op(CMD_COLL_STATS);
+
         let command = {
             let mut command = Document::new();
             command.insert(CMD_COLL_STATS, "oplog.rs");
             command
         };
         let local = self.client.database(DB_LOCAL);
-        let stats = local
-            .run_command(command, None)
+
+        // Wrap the command to be traced into an anonymous future to decorate.
+        let observed = async {
+            let stats = local
+                .run_command(command, None)
+                .await
+                .context(MongoInfoError::OplogStatsUnknown)?;
+            let max_size = stats
+                .get_i32("maxSize")
+                .context(MongoInfoError::OplogStatsNoSize)?;
+            Ok(max_size)
+        };
+
+        // Decorate the operation once for all return clauses and execute.
+        observed
+            .count_on_err(err_count)
+            .trace_on_err_with_status()
+            .with_context(trace)
             .await
-            .context(MongoInfoError::OplogStatsUnknown)?;
-        let max_size = stats
-            .get_i32("maxSize")
-            .context(MongoInfoError::OplogStatsNoSize)?;
-        Ok(max_size)
     }
 }
 
 #[async_trait::async_trait]
 impl NodeInfo for MongoInfo {
-    type Context = DefaultContext;
-
-    async fn node_info(&self, context: &Self::Context) -> Result<Node> {
+    async fn node_info(&self, context: &Context) -> Result<Node> {
         let rs = replica_set_status(&self.client).await;
         let node_status = self::status::get(rs, &context.logger).await?;
         let store_version = self.version.version(context).await?;
@@ -117,7 +151,7 @@ impl NodeInfo for MongoInfo {
         Ok(node)
     }
 
-    async fn shards(&self, _: &Self::Context) -> Result<ShardsInfo> {
+    async fn shards(&self, _: &Context) -> Result<ShardsInfo> {
         let status = replica_set_status(&self.client)
             .await
             .context(MongoInfoError::ReplicaSetStatusUnknown)?;
@@ -127,7 +161,7 @@ impl NodeInfo for MongoInfo {
         })
     }
 
-    async fn store_info(&self, _: &Self::Context) -> Result<StoreExtras> {
+    async fn store_info(&self, _: &Context) -> Result<StoreExtras> {
         // Get the cluster ID from the RS status.
         let status = replica_set_status(&self.client)
             .await
