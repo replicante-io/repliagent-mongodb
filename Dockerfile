@@ -1,7 +1,7 @@
 #########################
 # Build agent binary #
 #########################
-ARG RUST_VERSION=1.70.0-bookworm
+ARG RUST_VERSION=1.72.0-bookworm
 FROM rust:$RUST_VERSION as builder
 
 # Add the code and compile.

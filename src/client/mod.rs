@@ -63,7 +63,7 @@ fn connect(conf: &Conf) -> Result<Client> {
         // Ensure we connect directly and exclusively to our corresponding node.
         .direct_connection(true)
         .hosts(vec![server])
-        // As we local connections only long server selection timeouts hurt us.
+        // As we use local connections only long server selection timeouts hurt us.
         .server_selection_timeout(Duration::from_millis(500))
         // Additional client options.
         .connect_timeout(conf.connection_timeout.map(std::time::Duration::from_secs))

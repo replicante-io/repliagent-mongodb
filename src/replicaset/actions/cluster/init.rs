@@ -38,6 +38,7 @@ use crate::constants::DB_ADMIN;
 use crate::metrics::observe_mongodb_op;
 
 /// Initialise a MongoDB Replica Set cluster.
+#[derive(Debug)]
 pub struct Init {
     host: String,
 }

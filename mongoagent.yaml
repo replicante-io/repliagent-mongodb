@@ -14,4 +14,4 @@ telemetry:
 
 node_id: n-fake
 version_detect:
-  file: "dev-mongod-version.txt"
+  file: "dev/rs-version.txt"

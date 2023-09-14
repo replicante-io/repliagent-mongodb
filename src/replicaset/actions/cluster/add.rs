@@ -39,6 +39,7 @@ const RS_ATTR_MEMBERS: &str = "members";
 const RS_ATTR_VERSION: &str = "version";
 
 /// Add a node to the Replica Set cluster.
+#[derive(Debug)]
 pub struct Add;
 
 impl Add {

@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Replicante Agent for MongoDB"
 
 edition = "2021"
-rust-version = "1.68"
+rust-version = "1.70"
 
 homepage = "https://replicante.io"
 license = "MIT"
@@ -49,6 +49,6 @@ features = [
 
 [patch.crates-io]
 # Patch the SDK against a local path for cooperative development.
-replisdk = { path = "../replisdk-rust" }
+#replisdk = { path = "../replisdk-rust" }
 # Patch the SDK against a git commit for incremental merges between releases.
-#replisdk = { git = "https://github.com/replicante-io/replisdk-rust.git", rev = "25c1464" }
+replisdk = { git = "https://github.com/replicante-io/replisdk-rust.git", rev = "420ad96" }
