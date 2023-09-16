@@ -6,9 +6,6 @@ target/
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
-# IDE
+# IDE/Tools
+.github/**
 .vscode/**
-!.vscode/settings.json
-
-# Development files
-agent.db

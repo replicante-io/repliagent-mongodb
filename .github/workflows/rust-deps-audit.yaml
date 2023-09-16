@@ -1,4 +1,4 @@
-name: ust Dependencies Audit
+name: Rust Dependencies Audit
 on:
   pull_request:
     branches: [main]
