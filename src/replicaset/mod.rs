@@ -12,8 +12,6 @@ use crate::Cli;
 mod actions;
 mod info;
 
-const DEFAULT_CONF_PATH: &str = "mongoagent.yaml";
-
 /// Explicitly typed Agent builder for MongoDB agents.
 ///
 /// Having this explicit type can defined decorator functions to set up the agent
@@ -25,7 +23,7 @@ type MongoConf = AgentConf<Conf>;
 
 /// Run a Replicante Agent for MongoDB nodes in ReplicaSet clusters.
 pub fn run(args: Cli) -> Result<()> {
-    let mut conf = crate::conf::load(DEFAULT_CONF_PATH, MongoConf::default())?;
+    let mut conf = crate::conf::load(&args.config, MongoConf::default())?;
     crate::conf::apply_overrides(&mut conf.custom)?;
     conf.runtime
         .tokio
