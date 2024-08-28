@@ -82,7 +82,14 @@ impl ActionHandler for Init {
             let rs_id = conf
                 .get_document("parsed")
                 .and_then(|parsed| parsed.get_document("replication"))
-                .and_then(|replication| replication.get_str("replSetName"))
+                .and_then(|replication| {
+                    let rs_id_key = if replication.contains_key("replSet") {
+                        "replSet"
+                    } else {
+                        "replSetName"
+                    };
+                    replication.get_str(rs_id_key)
+                })
                 .context(InitError::NoReplicaSetName)?
                 .to_owned();
             Result::Ok(rs_id)
