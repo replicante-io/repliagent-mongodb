@@ -102,7 +102,7 @@ impl MongoInfo {
     }
 
     /// Lookup oplog collection max size.
-    async fn oplog_size(&self) -> Result<i32> {
+    async fn oplog_size(&self) -> Result<i64> {
         let trace = crate::trace::mongodb_client_context(CMD_COLL_STATS);
         let (err_count, _timer) = observe_mongodb_op(CMD_COLL_STATS);
 
@@ -120,7 +120,7 @@ impl MongoInfo {
                 .await
                 .context(MongoInfoError::OplogStatsUnknown)?;
             let max_size = stats
-                .get_i32("maxSize")
+                .get_i64("maxSize")
                 .context(MongoInfoError::OplogStatsNoSize)?;
             Ok(max_size)
         };
