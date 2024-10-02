@@ -1,4 +1,6 @@
 //! Functions to handle admin commands against MongoDB.
+use std::future::IntoFuture;
+
 use mongodb::bson::Document;
 use mongodb::error::Error;
 use mongodb::error::ErrorKind;
@@ -33,7 +35,8 @@ pub async fn replica_set_status(client: &Client) -> MdbResult<Document> {
     };
     let admin = client.database(DB_ADMIN);
     admin
-        .run_command(command, None)
+        .run_command(command)
+        .into_future()
         .trace_on_err()
         .with_context(trace.clone())
         .await

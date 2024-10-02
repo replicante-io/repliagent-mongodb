@@ -76,7 +76,7 @@ impl MongoInfo {
         // Wrap the command to be traced into an anonymous future to decorate.
         let observed = async {
             let params = admin
-                .run_command(command, None)
+                .run_command(command)
                 .await
                 .context(MongoInfoError::FeatCompatVerUnknown)?;
             match params.get_document(FEATURE_COMPATIBILITY_VERSION) {
@@ -116,7 +116,7 @@ impl MongoInfo {
         // Wrap the command to be traced into an anonymous future to decorate.
         let observed = async {
             let stats = local
-                .run_command(command, None)
+                .run_command(command)
                 .await
                 .context(MongoInfoError::OplogStatsUnknown)?;
             let max_size = stats

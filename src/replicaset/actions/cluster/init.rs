@@ -16,6 +16,8 @@
 //!
 //! [`getCmdLineOpts`]: https://www.mongodb.com/docs/manual/reference/command/getCmdLineOpts/
 //! [`replSetInitiate`]: https://www.mongodb.com/docs/manual/reference/command/replSetInitiate/
+use std::future::IntoFuture;
+
 use anyhow::Context as AnyContext;
 use anyhow::Result;
 use opentelemetry_api::trace::FutureExt;
@@ -76,7 +78,7 @@ impl ActionHandler for Init {
         // Wrap the command to be traced into an anonymous future to decorate.
         let observed = async {
             let conf = admin
-                .run_command(command, None)
+                .run_command(command)
                 .await
                 .context(InitError::Failed)?;
             let rs_id = conf
@@ -119,7 +121,8 @@ impl ActionHandler for Init {
         let trace = crate::trace::mongodb_client_context(CMD_REPL_SET_INIT);
         let (err_count, _timer) = observe_mongodb_op(CMD_REPL_SET_INIT);
         admin
-            .run_command(command, None)
+            .run_command(command)
+            .into_future()
             .count_on_err(err_count)
             .trace_on_err_with_status()
             .with_context(trace)

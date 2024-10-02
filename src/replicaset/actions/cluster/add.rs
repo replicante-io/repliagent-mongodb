@@ -14,6 +14,8 @@
 //! - `host`: Value of the new node for the `host` attribute.
 //!
 //! [`replSetReconfig`]: https://www.mongodb.com/docs/manual/reference/command/replSetReconfig/
+use std::future::IntoFuture;
+
 use anyhow::Context as AnyContext;
 use anyhow::Result;
 use opentelemetry_api::trace::FutureExt;
@@ -62,7 +64,8 @@ impl ActionHandler for Add {
         let trace = crate::trace::mongodb_client_context(CMD_REPL_SET_GET_CONFIG);
         let (err_count, timer) = observe_mongodb_op(CMD_REPL_SET_GET_CONFIG);
         let rs = admin
-            .run_command(command, None)
+            .run_command(command)
+            .into_future()
             .count_on_err(err_count)
             .trace_on_err_with_status()
             .with_context(trace)
@@ -113,7 +116,8 @@ impl ActionHandler for Add {
         let trace = crate::trace::mongodb_client_context(CMD_REPL_SET_RECONFIG);
         let (err_count, _timer) = observe_mongodb_op(CMD_REPL_SET_RECONFIG);
         admin
-            .run_command(command, None)
+            .run_command(command)
+            .into_future()
             .count_on_err(err_count)
             .trace_on_err_with_status()
             .with_context(trace)
