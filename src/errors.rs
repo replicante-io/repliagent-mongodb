@@ -29,6 +29,10 @@ pub enum ConfError {
     /// The node cluster address is missing from both configuration and environment.
     #[error("the node cluster address is missing from both configuration and environment")]
     NoClusterAddress,
+
+    /// The node member address is missing from the environment
+    #[error("the node member address is missing from the environment")]
+    NoNodeMemberAddress,
 }
 
 /// Unrecognised member state code.

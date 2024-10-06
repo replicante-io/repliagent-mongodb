@@ -17,6 +17,7 @@ use replisdk::context::Context;
 use replisdk::utils::metrics::CountFutureErrExt;
 use replisdk::utils::trace::TraceFutureErrExt;
 
+mod address;
 mod factory;
 mod shard;
 mod status;
@@ -141,7 +142,7 @@ impl NodeInfo for MongoInfo {
         let node_status = self::status::get(rs, &context.logger).await?;
         let store_version = self.version.version(context).await?;
         let node = Node {
-            address: Default::default(),
+            address: self::address::detect()?,
             agent_version: crate::AGENT_VERSION.clone(),
             attributes: STATIC_ATTRIBUTES.clone(),
             node_id: self.node_id.clone(),
