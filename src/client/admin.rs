@@ -6,7 +6,7 @@ use mongodb::error::Error;
 use mongodb::error::ErrorKind;
 use mongodb::error::Result as MdbResult;
 use mongodb::Client;
-use opentelemetry_api::trace::FutureExt;
+use opentelemetry::trace::FutureExt;
 
 use replisdk::utils::trace::TraceFutureStdErrExt;
 

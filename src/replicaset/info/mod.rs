@@ -4,7 +4,7 @@ use anyhow::Result;
 use mongodb::bson::Document;
 use mongodb::Client;
 use once_cell::sync::Lazy;
-use opentelemetry_api::trace::FutureExt;
+use opentelemetry::trace::FutureExt;
 
 use replisdk::agent::framework::NodeInfo;
 use replisdk::agent::framework::StoreVersionChain;
@@ -141,6 +141,7 @@ impl NodeInfo for MongoInfo {
         let node_status = self::status::get(rs, &context.logger).await?;
         let store_version = self.version.version(context).await?;
         let node = Node {
+            address: Default::default(),
             agent_version: crate::AGENT_VERSION.clone(),
             attributes: STATIC_ATTRIBUTES.clone(),
             node_id: self.node_id.clone(),

@@ -20,7 +20,7 @@ use std::future::IntoFuture;
 
 use anyhow::Context as AnyContext;
 use anyhow::Result;
-use opentelemetry_api::trace::FutureExt;
+use opentelemetry::trace::FutureExt;
 use serde::Deserialize;
 use serde::Serialize;
 

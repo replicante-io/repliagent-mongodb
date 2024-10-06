@@ -18,7 +18,7 @@ use std::future::IntoFuture;
 
 use anyhow::Context as AnyContext;
 use anyhow::Result;
-use opentelemetry_api::trace::FutureExt;
+use opentelemetry::trace::FutureExt;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -134,9 +134,11 @@ pub struct AddArgs {
     /// Index to use for the new node `_id` attribute.
     ///
     /// If not set, largest integer not currently in use is assigned.
+    #[serde(default)]
     pub id: Option<u32>,
 
     /// Value of the new node for the `host` attribute.
+    #[serde(alias = "node")]
     pub host: String,
 }
 
