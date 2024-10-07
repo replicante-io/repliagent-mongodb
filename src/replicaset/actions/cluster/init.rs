@@ -27,6 +27,7 @@ use serde::Serialize;
 use replisdk::agent::framework::actions::ActionHandler;
 use replisdk::agent::framework::actions::ActionHandlerChanges as Changes;
 use replisdk::agent::framework::actions::ActionMetadata;
+use replisdk::agent::framework::constants::ENV_NODE_ADDR_MEMBER;
 use replisdk::agent::models::ActionExecution;
 use replisdk::agent::models::ActionExecutionPhase;
 use replisdk::context::Context;
@@ -41,15 +42,12 @@ use crate::metrics::observe_mongodb_op;
 
 /// Initialise a MongoDB Replica Set cluster.
 #[derive(Debug)]
-pub struct Init {
-    host: String,
-}
+pub struct Init;
 
 impl Init {
     /// Registration metadata for the cluster initialisation action.
-    pub fn metadata(host: String) -> ActionMetadata {
-        let init = Init { host };
-        replisdk::agent::framework::actions::wellknown::cluster::init(init)
+    pub fn metadata() -> ActionMetadata {
+        replisdk::agent::framework::actions::wellknown::cluster::init(Init)
     }
 }
 
@@ -59,6 +57,8 @@ impl ActionHandler for Init {
         let args = serde_json::from_value::<Option<InitArgs>>(action.args.clone())
             .context(InitError::InvalidArgs)?
             .unwrap_or_default();
+        let self_host = std::env::var(ENV_NODE_ADDR_MEMBER)
+            .context(crate::errors::ConfError::NoNodeMemberAddress)?;
         let client = crate::client::global();
 
         // Check current replica set config on node.
@@ -108,7 +108,7 @@ impl ActionHandler for Init {
             "_id": rs_id,
             "members": [{
                 "_id": 0,
-                "host": &self.host,
+                "host": &self_host,
             }],
         };
         if let Some(settings) = args.settings {

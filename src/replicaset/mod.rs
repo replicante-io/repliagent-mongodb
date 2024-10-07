@@ -34,8 +34,6 @@ pub fn run(args: Cli) -> Result<()> {
 }
 
 async fn async_run(_args: Cli, conf: MongoConf) -> Result<()> {
-    // SAFETY: Existence of this value if guaranteed by `crate::conf::apply_overrides`.
-    let host = conf.custom.addresses.cluster.clone().unwrap();
     let options = AgentOptions {
         requests_metrics_prefix: "repliagent",
     };
@@ -53,7 +51,7 @@ async fn async_run(_args: Cli, conf: MongoConf) -> Result<()> {
         .initialise_with(crate::metrics::Register)
         .register_actions(replisdk::agent::framework::actions::wellknown::test::all())
         .register_action(actions::cluster::Add::metadata())
-        .register_action(actions::cluster::Init::metadata(host));
+        .register_action(actions::cluster::Init::metadata());
 
     // Run the agent until error or shutdown.
     agent.run().await
